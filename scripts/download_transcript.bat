@@ -1,8 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
 
-REM Teams Transcript Downloader - Interactive batch file
-
 title Teams Transcript Downloader
 
 cls
@@ -20,7 +18,7 @@ if not exist ".env" (
     echo.
     set /p setup_choice="Enter Y to setup or N to exit (Y/N): "
 
-    if /i "!setup_choice!"=="Y" (
+    if "%setup_choice%"=="Y" (
         call setup_teams.bat
         if errorlevel 1 (
             exit /b 1
@@ -39,7 +37,6 @@ if errorlevel 1 (
     echo [ERROR] Python is not found or not in PATH
     echo.
     echo Please install Python 3.7+ from https://www.python.org/
-    echo Make sure to check "Add Python to PATH" during installation
     echo.
     pause
     exit /b 1
@@ -55,11 +52,10 @@ echo Examples:
 echo   - "Project XYZ Standup"
 echo   - "standup"
 echo   - "weekly sync"
-echo   - "team sync"
 echo.
 set /p meeting_name="Meeting name: "
 
-if "!meeting_name!"=="" (
+if "%meeting_name%"=="" (
     echo.
     echo [ERROR] Meeting name cannot be empty
     echo.
@@ -73,13 +69,13 @@ echo ========================================================================
 echo          Downloading Transcript
 echo ========================================================================
 echo.
-echo Meeting name: "!meeting_name!"
+echo Meeting name: "%meeting_name%"
 echo.
 echo [INFO] Authenticating to Teams...
 echo.
 
 REM Run the Python script
-python download_teams_transcript.py --meeting-name "!meeting_name!"
+python download_teams_transcript.py --meeting-name "%meeting_name%"
 
 if errorlevel 1 (
     echo.
@@ -110,8 +106,5 @@ echo   1. Open Claude Code Desktop
 echo   2. Say: "delivery assessment" or "assess my team"
 echo   3. The skill will auto-discover the transcript
 echo   4. Review the generated Confluence report
-echo.
-echo Transcript saved to:
-echo   Recordings\ folder (in your workspace)
 echo.
 pause

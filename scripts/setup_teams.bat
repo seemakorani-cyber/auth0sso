@@ -1,15 +1,13 @@
 @echo off
 setlocal enabledelayedexpansion
 
-REM Teams Transcript Setup - One-time configuration
-
 title Teams Transcript Downloader - Setup
 
 cls
 echo.
 echo ========================================================================
 echo     Teams Transcript Downloader - SETUP
-echo     One-time configuration (takes ~5 minutes)
+echo     One-time configuration
 echo ========================================================================
 echo.
 
@@ -31,24 +29,21 @@ echo.
 REM Get the script directory
 cd /d "%~dp0"
 
-REM Check if requirements are installed
-echo [INFO] Checking Python dependencies...
-python -c "import msal" >nul 2>&1
+REM Install dependencies
+echo [INFO] Installing Python dependencies...
+echo.
+pip install msal requests python-dotenv
+
 if errorlevel 1 (
-    echo [INFO] Installing dependencies (msal, requests, python-dotenv)...
     echo.
-    pip install msal requests python-dotenv
-    if errorlevel 1 (
-        echo [ERROR] Failed to install dependencies
-        pause
-        exit /b 1
-    )
-    echo [OK] Dependencies installed
-    echo.
-) else (
-    echo [OK] Dependencies already installed
-    echo.
+    echo [ERROR] Failed to install dependencies
+    pause
+    exit /b 1
 )
+
+echo.
+echo [OK] Dependencies installed
+echo.
 
 REM Run the setup script
 echo [INFO] Starting Azure app registration setup...
@@ -69,8 +64,5 @@ echo ========================================================================
 echo.
 echo You can now download transcripts by running:
 echo   - Double-click "download_transcript.bat"
-echo.
-echo Or from command line:
-echo   python download_teams_transcript.py --meeting-name "Meeting Name"
 echo.
 pause

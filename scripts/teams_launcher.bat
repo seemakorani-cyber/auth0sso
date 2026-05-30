@@ -1,7 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 
-REM Teams Transcript Launcher - Main menu
+title Teams Transcript Downloader - Main Menu
 
 :menu
 cls
@@ -19,13 +19,13 @@ echo   [4] Exit
 echo.
 set /p choice="Enter your choice (1-4): "
 
-if "!choice!"=="1" (
+if "%choice%"=="1" (
     call download_transcript.bat
     goto menu
-) else if "!choice!"=="2" (
+) else if "%choice%"=="2" (
     call setup_teams.bat
     goto menu
-) else if "!choice!"=="3" (
+) else if "%choice%"=="3" (
     if exist "..\TEAMS_TRANSCRIPT_SETUP.md" (
         start notepad "..\TEAMS_TRANSCRIPT_SETUP.md"
     ) else (
@@ -35,7 +35,7 @@ if "!choice!"=="1" (
         pause
     )
     goto menu
-) else if "!choice!"=="4" (
+) else if "%choice%"=="4" (
     exit /b 0
 ) else (
     echo.
