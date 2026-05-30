@@ -2,24 +2,21 @@
 setlocal enabledelayedexpansion
 
 REM Teams Transcript Downloader - Interactive batch file
-REM Double-click to download a Teams meeting transcript
 
 title Teams Transcript Downloader
 
 cls
 echo.
-echo ╔════════════════════════════════════════════════════════════════════╗
-echo ║          Teams Meeting Transcript Downloader                      ║
-echo ╚════════════════════════════════════════════════════════════════════╝
+echo ========================================================================
+echo          Teams Meeting Transcript Downloader
+echo ========================================================================
 echo.
 
 REM Check if setup has been done
 if not exist ".env" (
-    echo ⚠️  WARNING: Setup not complete!
+    echo [WARNING] Setup not complete!
     echo.
     echo You need to run "setup_teams.bat" first to configure credentials.
-    echo.
-    echo Would you like to run setup now?
     echo.
     set /p setup_choice="Enter Y to setup or N to exit (Y/N): "
 
@@ -30,7 +27,7 @@ if not exist ".env" (
         )
     ) else (
         echo.
-        echo ❌ Setup required to continue. Exiting.
+        echo [ERROR] Setup required to continue. Exiting.
         pause
         exit /b 1
     )
@@ -39,7 +36,7 @@ if not exist ".env" (
 REM Check if Python is installed
 python --version >nul 2>&1
 if errorlevel 1 (
-    echo ❌ ERROR: Python is not found or not in PATH
+    echo [ERROR] Python is not found or not in PATH
     echo.
     echo Please install Python 3.7+ from https://www.python.org/
     echo Make sure to check "Add Python to PATH" during installation
@@ -52,19 +49,19 @@ REM Get current directory
 cd /d "%~dp0"
 
 echo.
-echo 📝 Enter the Teams meeting name (or partial name)
+echo Please enter the Teams meeting name (or partial name)
 echo.
 echo Examples:
-echo   • "Project XYZ Standup"
-echo   • "standup"
-echo   • "weekly sync"
-echo   • "team sync"
+echo   - "Project XYZ Standup"
+echo   - "standup"
+echo   - "weekly sync"
+echo   - "team sync"
 echo.
 set /p meeting_name="Meeting name: "
 
 if "!meeting_name!"=="" (
     echo.
-    echo ❌ ERROR: Meeting name cannot be empty
+    echo [ERROR] Meeting name cannot be empty
     echo.
     pause
     exit /b 1
@@ -72,13 +69,13 @@ if "!meeting_name!"=="" (
 
 cls
 echo.
-echo ╔════════════════════════════════════════════════════════════════════╗
-echo ║          Downloading Transcript                                   ║
-echo ╚════════════════════════════════════════════════════════════════════╝
+echo ========================================================================
+echo          Downloading Transcript
+echo ========================================================================
 echo.
 echo Meeting name: "!meeting_name!"
 echo.
-echo 🔐 Authenticating to Teams...
+echo [INFO] Authenticating to Teams...
 echo.
 
 REM Run the Python script
@@ -86,14 +83,14 @@ python download_teams_transcript.py --meeting-name "!meeting_name!"
 
 if errorlevel 1 (
     echo.
-    echo ╔════════════════════════════════════════════════════════════════════╗
-    echo ║  ❌ DOWNLOAD FAILED                                               ║
-    echo ╚════════════════════════════════════════════════════════════════════╝
+    echo ========================================================================
+    echo  [ERROR] DOWNLOAD FAILED
+    echo ========================================================================
     echo.
     echo Possible issues:
-    echo   • Meeting name not found - try a shorter or different name
-    echo   • Transcript not ready - Teams takes 5-10 min after meeting ends
-    echo   • Credentials expired - re-run setup_teams.bat
+    echo   - Meeting name not found - try a shorter or different name
+    echo   - Transcript not ready - Teams takes 5-10 min after meeting ends
+    echo   - Credentials expired - re-run setup_teams.bat
     echo.
     echo For more help, see: TEAMS_TRANSCRIPT_SETUP.md
     echo.
@@ -104,9 +101,9 @@ if errorlevel 1 (
 REM Success
 cls
 echo.
-echo ╔════════════════════════════════════════════════════════════════════╗
-echo ║  ✅ TRANSCRIPT DOWNLOADED SUCCESSFULLY!                           ║
-echo ╚════════════════════════════════════════════════════════════════════╝
+echo ========================================================================
+echo  [OK] TRANSCRIPT DOWNLOADED SUCCESSFULLY!
+echo ========================================================================
 echo.
 echo Next step:
 echo   1. Open Claude Code Desktop
@@ -115,7 +112,6 @@ echo   3. The skill will auto-discover the transcript
 echo   4. Review the generated Confluence report
 echo.
 echo Transcript saved to:
-echo   📁 %WORKSPACE_PATH%\Recordings\
-echo   (or your configured workspace path)
+echo   Recordings\ folder (in your workspace)
 echo.
 pause

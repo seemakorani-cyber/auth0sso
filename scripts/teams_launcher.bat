@@ -2,14 +2,13 @@
 setlocal enabledelayedexpansion
 
 REM Teams Transcript Launcher - Main menu
-REM Provides easy access to setup and download functions
 
 :menu
 cls
 echo.
-echo ╔════════════════════════════════════════════════════════════════════╗
-echo ║         Teams Transcript Downloader - Main Menu                   ║
-echo ╚════════════════════════════════════════════════════════════════════╝
+echo ========================================================================
+echo         Teams Transcript Downloader - Main Menu
+echo ========================================================================
 echo.
 echo What would you like to do?
 echo.
@@ -31,7 +30,7 @@ if "!choice!"=="1" (
         start notepad "..\TEAMS_TRANSCRIPT_SETUP.md"
     ) else (
         echo.
-        echo ❌ Documentation file not found
+        echo [ERROR] Documentation file not found
         echo.
         pause
     )
@@ -40,7 +39,7 @@ if "!choice!"=="1" (
     exit /b 0
 ) else (
     echo.
-    echo ❌ Invalid choice. Please enter 1, 2, 3, or 4.
+    echo [ERROR] Invalid choice. Please enter 1, 2, 3, or 4.
     echo.
     pause
     goto menu
