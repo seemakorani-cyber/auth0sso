@@ -36,9 +36,21 @@ pip install msal requests python-dotenv
 
 if errorlevel 1 (
     echo.
-    echo [ERROR] Failed to install dependencies
-    pause
-    exit /b 1
+    echo [WARNING] Failed to install Python dependencies
+    echo.
+    echo This might be due to:
+    echo   - Network issues
+    echo   - Python not in PATH
+    echo.
+    set /p choice="Try PowerShell-based Azure setup instead? (Y/N): "
+    if "%choice%"=="Y" (
+        call setup_teams_auth_azure.bat
+    ) else (
+        echo [ERROR] Cannot continue without dependencies
+        pause
+        exit /b 1
+    )
+    exit /b 0
 )
 
 echo.
@@ -52,9 +64,10 @@ python setup_teams_auth.py
 
 if errorlevel 1 (
     echo.
-    echo [ERROR] Setup failed. Please try again.
-    pause
-    exit /b 1
+    echo [INFO] Python setup failed. Trying PowerShell setup...
+    echo.
+    call setup_teams_auth_azure.bat
+    exit /b 0
 )
 
 echo.
