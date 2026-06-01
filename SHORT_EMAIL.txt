@@ -1,0 +1,26 @@
+Subject: Quick Test Needed - Teams Transcript Downloader (5 min)
+
+Hi [Admin Name],
+
+Could you help test our new Teams Transcript Downloader? We need to verify browser-based login works with MFA.
+
+QUICK TEST:
+
+1. git fetch origin claude/sleepy-carson-d4d3t && git checkout claude/sleepy-carson-d4d3t && cd scripts
+
+2. pip install msal requests python-dotenv
+
+3. Create .env file with:
+   AZURE_CLIENT_ID=22cd99bd-a84b-4739-95cc-18a43f48acf1
+   AZURE_TENANT_ID=d508624f-a0b7-4fd3-9511-05b18ca02784
+
+4. python download_teams_transcript.py --meeting-name "standup"
+
+EXPECTED: Browser opens → Login → Transcript downloads
+
+Please confirm:
+✓ Browser opens for login
+✓ Your MFA works (if enabled)
+✓ Transcript downloads successfully
+
+Thanks!
