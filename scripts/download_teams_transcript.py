@@ -72,7 +72,7 @@ def save_token_to_cache(token, expires_in):
 
 
 def get_auth_token():
-    """Authenticate using device flow (browser login)."""
+    """Authenticate using username/password (no browser)."""
 
     # Try to use cached token first
     cached_token = load_cached_token()
@@ -95,16 +95,28 @@ def get_auth_token():
             save_token_to_cache(token_response["access_token"], token_response.get("expires_in", 3600))
             return token_response["access_token"]
 
-    # Device flow login
-    print("[INFO] Opening browser for Teams login...")
-    flow = app.initiate_device_flow(scopes=SCOPES)
-    if "user_code" not in flow:
-        raise Exception("Failed to initiate device flow")
+    # Username/password login (no browser needed)
+    print("\n[INFO] Enter your Teams credentials (no browser needed)")
+    print("[WARNING] This won't work if you have multi-factor auth (MFA) enabled\n")
 
-    print(f"\n[ACTION] Enter this code: {flow['user_code']}")
-    print(f"[ACTION] Go to: https://microsoft.com/devicelogin\n")
+    username = input("[ACTION] Enter your email: ").strip()
+    import getpass
+    password = getpass.getpass("[ACTION] Enter your password: ")
 
-    token_response = app.acquire_token_by_device_flow(flow)
+    if not username or not password:
+        raise Exception("Username and password are required")
+
+    print("\n[INFO] Authenticating...")
+
+    try:
+        token_response = app.acquire_token_by_username_password(
+            username=username,
+            password=password,
+            scopes=SCOPES
+        )
+    except Exception as e:
+        raise Exception(f"Authentication failed: {str(e)}")
+
     if "access_token" not in token_response:
         error = token_response.get('error_description', 'Unknown error')
         raise Exception(f"Login failed: {error}")
