@@ -36,31 +36,35 @@ RECORDINGS_DIR = Path(WORKSPACE) / "Recordings"
 
 
 def load_cached_token():
-    """Load cached access token if it exists and is valid."""
+    """Load cached access token if it exists and is valid. Returns (token, refresh_token, expired)."""
     if not CACHE_FILE.exists():
-        return None
+        return None, None, False
 
     try:
         with open(CACHE_FILE, 'r') as f:
             cache_data = json.load(f)
 
-        # Check if token exists and hasn't expired
-        if 'access_token' in cache_data:
-            expires_at = datetime.fromisoformat(cache_data.get('expires_at', ''))
-            if expires_at > datetime.now():
-                return cache_data['access_token']
+        access_token = cache_data.get('access_token')
+        refresh_token = cache_data.get('refresh_token')
+        expires_at = datetime.fromisoformat(cache_data.get('expires_at', ''))
+
+        is_expired = expires_at <= datetime.now()
+
+        if access_token:
+            return access_token, refresh_token, is_expired
     except (json.JSONDecodeError, ValueError, KeyError):
         pass
 
-    return None
+    return None, None, False
 
 
-def save_token_to_cache(token, expires_in):
-    """Save access token and expiration time to cache file."""
+def save_token_to_cache(token, refresh_token, expires_in):
+    """Save access token, refresh token, and expiration time to cache file."""
     try:
         expires_at = datetime.now() + timedelta(seconds=expires_in)
         cache_data = {
             'access_token': token,
+            'refresh_token': refresh_token,
             'expires_at': expires_at.isoformat(),
             'created_at': datetime.now().isoformat()
         }
@@ -74,20 +78,37 @@ def save_token_to_cache(token, expires_in):
 def get_auth_token():
     """Authenticate using device flow (browser-based login with MFA support)."""
 
-    # Try to use cached token first
-    cached_token = load_cached_token()
-    if cached_token:
-        print("[INFO] Using cached login (valid for ~1 hour)")
-        return cached_token
-
-    print("[INFO] No valid cached token. Starting login...\n")
-
     app = PublicClientApplication(
         client_id=CLIENT_ID,
         authority=f"https://login.microsoftonline.com/{TENANT_ID}"
     )
 
-    # Device flow login (supports MFA)
+    # Try to use cached token first
+    cached_token, refresh_token, is_expired = load_cached_token()
+
+    if cached_token and not is_expired:
+        print("[INFO] Using cached token (still valid)")
+        return cached_token
+
+    # Try to refresh expired token using refresh token
+    if cached_token and is_expired and refresh_token:
+        print("[INFO] Access token expired, refreshing...")
+        try:
+            token_response = app.acquire_token_by_refresh_token(refresh_token, scopes=SCOPES)
+            if "access_token" in token_response:
+                save_token_to_cache(
+                    token_response["access_token"],
+                    token_response.get("refresh_token", refresh_token),
+                    token_response.get("expires_in", 3600)
+                )
+                print("[OK] Token refreshed. Cache updated.\n")
+                return token_response["access_token"]
+        except Exception as e:
+            print(f"[INFO] Refresh failed ({str(e)}), will re-authenticate")
+
+    # Full device flow login (first time or refresh failed)
+    print("[INFO] Starting device flow login...\n")
+
     try:
         flow = app.initiate_device_flow(scopes=SCOPES)
         if "user_code" not in flow:
@@ -104,9 +125,13 @@ def get_auth_token():
         error = token_response.get('error_description', 'Unknown error')
         raise Exception(f"Login failed: {error}")
 
-    # Cache the token
-    save_token_to_cache(token_response["access_token"], token_response.get("expires_in", 3600))
-    print("\n[OK] Login successful! Token cached for next time.\n")
+    # Cache the token and refresh token
+    save_token_to_cache(
+        token_response["access_token"],
+        token_response.get("refresh_token"),
+        token_response.get("expires_in", 3600)
+    )
+    print("\n[OK] Login successful! Token cached for future use.\n")
 
     return token_response["access_token"]
 
