@@ -152,13 +152,13 @@ def search_teams_meetings(token, meeting_name):
     # Escape single quotes for OData filter
     escaped_name = meeting_name.replace("'", "''")
 
-    # Search for calendar events containing the meeting name
+    # Try to search using /me/events endpoint (doesn't require date range)
     filter_query = f"contains(subject, '{escaped_name}')"
-    url = f"{GRAPH_API_BASE}/me/calendarview"
+    url = f"{GRAPH_API_BASE}/me/events"
     params = {
         "$filter": filter_query,
         "$orderby": "start/dateTime desc",
-        "$top": "10"
+        "$top": "20"
     }
 
     response = requests.get(url, headers=headers, params=params)
@@ -167,14 +167,14 @@ def search_teams_meetings(token, meeting_name):
         raise Exception("Authentication token expired or invalid")
 
     if response.status_code == 400:
-        # Try without filter if special characters cause issues
-        print("[INFO] Retrying search without special character handling...")
+        # Fallback: fetch recent events without filter and filter client-side
+        print("[INFO] Retrying search without filter...")
         response = requests.get(
-            f"{GRAPH_API_BASE}/me/calendarview",
+            f"{GRAPH_API_BASE}/me/events",
             headers=headers,
             params={
                 "$orderby": "start/dateTime desc",
-                "$top": "50"
+                "$top": "100"
             }
         )
         if response.status_code != 200:
