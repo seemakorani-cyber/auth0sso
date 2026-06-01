@@ -14,7 +14,7 @@ import requests
 from pathlib import Path
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from msal import PublicClientApplication, ConfidentialClientApplication
+from msal import PublicClientApplication
 
 # Load environment variables
 load_dotenv()
@@ -22,7 +22,6 @@ load_dotenv()
 # Configuration
 CLIENT_ID = os.getenv("AZURE_CLIENT_ID")
 TENANT_ID = os.getenv("AZURE_TENANT_ID")
-CLIENT_SECRET = os.getenv("AZURE_CLIENT_SECRET")  # For confidential clients
 SCOPES = ["https://graph.microsoft.com/.default"]
 GRAPH_API_BASE = "https://graph.microsoft.com/v1.0"
 
@@ -72,29 +71,9 @@ def save_token_to_cache(token, expires_in):
         print(f"[WARNING] Could not save token cache: {e}")
 
 
-def get_auth_token_confidential():
-    """Get token for confidential client (using client secret)."""
-    app = ConfidentialClientApplication(
-        client_id=CLIENT_ID,
-        client_credential=CLIENT_SECRET,
-        authority=f"https://login.microsoftonline.com/{TENANT_ID}"
-    )
+def get_auth_token():
+    """Authenticate using device flow (browser login)."""
 
-    print("[INFO] Authenticating with client credentials...")
-    token_response = app.acquire_token_for_client(scopes=SCOPES)
-
-    if "access_token" not in token_response:
-        error = token_response.get('error_description', 'Unknown error')
-        raise Exception(f"Authentication failed: {error}")
-
-    save_token_to_cache(token_response["access_token"], token_response.get("expires_in", 3600))
-    print("[OK] Authentication successful!")
-
-    return token_response["access_token"]
-
-
-def get_auth_token_public():
-    """Get token for public client (using device flow)."""
     # Try to use cached token first
     cached_token = load_cached_token()
     if cached_token:
@@ -137,20 +116,11 @@ def get_auth_token_public():
     return token_response["access_token"]
 
 
-def get_auth_token():
-    """Get authentication token - uses client secret if available, otherwise device flow."""
-    if CLIENT_SECRET:
-        return get_auth_token_confidential()
-    else:
-        return get_auth_token_public()
-
-
 def search_teams_meetings(token, meeting_name):
     """Search for Teams meetings by name and return matching events."""
     headers = {"Authorization": f"Bearer {token}"}
 
     # Fetch all recent events and filter client-side
-    # This is more reliable than using OData filters with special characters
     print("[INFO] Fetching recent events...")
     url = f"{GRAPH_API_BASE}/me/events"
     params = {"$top": "200"}
@@ -161,7 +131,7 @@ def search_teams_meetings(token, meeting_name):
         raise Exception("Authentication token expired or invalid")
 
     if response.status_code != 200:
-        response.raise_for_status()
+        raise Exception(f"Failed to fetch events: {response.status_code} - {response.text}")
 
     # Get all events
     events = response.json().get("value", [])
