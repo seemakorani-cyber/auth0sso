@@ -95,28 +95,12 @@ def get_auth_token():
             save_token_to_cache(token_response["access_token"], token_response.get("expires_in", 3600))
             return token_response["access_token"]
 
-    # Username/password login (no browser needed)
-    print("\n[INFO] Authenticating with Teams credentials (no browser needed)")
-    print("[WARNING] This won't work if you have multi-factor auth (MFA) enabled\n")
-
-    # Hardcoded email
-    username = "seema.korani@royalcyber.com"
-    print(f"[INFO] Email: {username}")
-
-    import getpass
-    password = getpass.getpass("[ACTION] Enter your password: ")
-
-    if not username or not password:
-        raise Exception("Username and password are required")
-
-    print("\n[INFO] Authenticating...")
+    # Interactive browser login (supports MFA)
+    print("\n[INFO] Authenticating with Teams credentials...")
+    print("[INFO] A browser window will open for secure login (supports MFA)\n")
 
     try:
-        token_response = app.acquire_token_by_username_password(
-            username=username,
-            password=password,
-            scopes=SCOPES
-        )
+        token_response = app.acquire_token_interactive(scopes=SCOPES)
     except Exception as e:
         raise Exception(f"Authentication failed: {str(e)}")
 
