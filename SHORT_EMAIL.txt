@@ -1,0 +1,40 @@
+Subject: Azure App Setup Needed - Teams Transcript Downloader
+
+Hi [Admin Name],
+
+Please update the "Teams Transcript Downloader" app registration with these steps:
+
+AZURE APP CONFIGURATION:
+
+1. Go to Azure Portal → App registrations → Teams Transcript Downloader app
+
+2. Click "Authentication" (left menu)
+
+3. Add platform:
+   - Click "+ Add a platform"
+   - Select "Mobile and desktop applications"
+   - Add redirect URI: http://localhost
+   - Click "Configure"
+   - Save
+
+Once configured, users can test with:
+
+1. git fetch origin claude/sleepy-carson-d4d3t && git checkout claude/sleepy-carson-d4d3t && cd scripts
+
+2. pip install msal requests python-dotenv
+
+3. Create .env file with:
+   AZURE_CLIENT_ID=22cd99bd-a84b-4739-95cc-18a43f48acf1
+   AZURE_TENANT_ID=d508624f-a0b7-4fd3-9511-05b18ca02784
+
+4. python download_teams_transcript.py --meeting-name "standup"
+
+EXPECTED:
+- Terminal shows login code + URL
+- User opens URL and enters code
+- Completes Teams login (MFA works)
+- Transcript downloads automatically
+
+Please confirm when app is configured.
+
+Thanks!
