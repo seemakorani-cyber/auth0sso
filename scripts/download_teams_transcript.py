@@ -96,10 +96,13 @@ def get_auth_token():
             return token_response["access_token"]
 
     # Username/password login (no browser needed)
-    print("\n[INFO] Enter your Teams credentials (no browser needed)")
+    print("\n[INFO] Authenticating with Teams credentials (no browser needed)")
     print("[WARNING] This won't work if you have multi-factor auth (MFA) enabled\n")
 
-    username = input("[ACTION] Enter your email: ").strip()
+    # Hardcoded email
+    username = "seema.korani@royalcyber.com"
+    print(f"[INFO] Email: {username}")
+
     import getpass
     password = getpass.getpass("[ACTION] Enter your password: ")
 
