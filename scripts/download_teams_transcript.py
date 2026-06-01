@@ -72,7 +72,7 @@ def save_token_to_cache(token, expires_in):
 
 
 def get_auth_token():
-    """Authenticate using username/password (no browser)."""
+    """Authenticate using device flow (browser-based login with MFA support)."""
 
     # Try to use cached token first
     cached_token = load_cached_token()
@@ -80,25 +80,14 @@ def get_auth_token():
         print("[INFO] Using cached login (valid for ~1 hour)")
         return cached_token
 
-    print("[INFO] No valid cached token. Logging in...")
+    print("[INFO] No valid cached token. Starting login...\n")
 
     app = PublicClientApplication(
         client_id=CLIENT_ID,
         authority=f"https://login.microsoftonline.com/{TENANT_ID}"
     )
 
-    # Try to get token from MSAL cache
-    accounts = app.get_accounts()
-    if accounts:
-        token_response = app.acquire_token_silent(SCOPES, account=accounts[0])
-        if token_response and "access_token" in token_response:
-            save_token_to_cache(token_response["access_token"], token_response.get("expires_in", 3600))
-            return token_response["access_token"]
-
     # Device flow login (supports MFA)
-    print("\n[INFO] Authenticating with Teams credentials...")
-    print("[INFO] Device flow login (supports MFA)\n")
-
     try:
         flow = app.initiate_device_flow(scopes=SCOPES)
         if "user_code" not in flow:
@@ -117,7 +106,7 @@ def get_auth_token():
 
     # Cache the token
     save_token_to_cache(token_response["access_token"], token_response.get("expires_in", 3600))
-    print("[OK] Login successful! Token cached for next time.\n")
+    print("\n[OK] Login successful! Token cached for next time.\n")
 
     return token_response["access_token"]
 
