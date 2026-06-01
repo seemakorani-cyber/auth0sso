@@ -95,12 +95,19 @@ def get_auth_token():
             save_token_to_cache(token_response["access_token"], token_response.get("expires_in", 3600))
             return token_response["access_token"]
 
-    # Interactive browser login (supports MFA)
+    # Device flow login (supports MFA)
     print("\n[INFO] Authenticating with Teams credentials...")
-    print("[INFO] A browser window will open for secure login (supports MFA)\n")
+    print("[INFO] Device flow login (supports MFA)\n")
 
     try:
-        token_response = app.acquire_token_interactive(scopes=SCOPES)
+        flow = app.initiate_device_flow(scopes=SCOPES)
+        if "user_code" not in flow:
+            raise Exception("Failed to initiate device flow")
+
+        print(flow.get("message"))
+        print()
+
+        token_response = app.acquire_token_by_device_flow(flow)
     except Exception as e:
         raise Exception(f"Authentication failed: {str(e)}")
 
