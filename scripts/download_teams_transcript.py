@@ -149,14 +149,46 @@ def search_teams_meetings(token, meeting_name):
     """Search for Teams meetings by name and return matching events."""
     headers = {"Authorization": f"Bearer {token}"}
 
-    # Search for calendar events containing the meeting name
-    filter_query = f"contains(subject, '{meeting_name}')"
-    url = f"{GRAPH_API_BASE}/me/calendarview?$filter={filter_query}&$orderby=start/dateTime desc&$top=10"
+    # Escape single quotes for OData filter
+    escaped_name = meeting_name.replace("'", "''")
 
-    response = requests.get(url, headers=headers)
+    # Search for calendar events containing the meeting name
+    filter_query = f"contains(subject, '{escaped_name}')"
+    url = f"{GRAPH_API_BASE}/me/calendarview"
+    params = {
+        "$filter": filter_query,
+        "$orderby": "start/dateTime desc",
+        "$top": "10"
+    }
+
+    response = requests.get(url, headers=headers, params=params)
 
     if response.status_code == 401:
         raise Exception("Authentication token expired or invalid")
+
+    if response.status_code == 400:
+        # Try without filter if special characters cause issues
+        print("[INFO] Retrying search without special character handling...")
+        response = requests.get(
+            f"{GRAPH_API_BASE}/me/calendarview",
+            headers=headers,
+            params={
+                "$orderby": "start/dateTime desc",
+                "$top": "50"
+            }
+        )
+        if response.status_code != 200:
+            response.raise_for_status()
+
+        # Filter manually on the client side
+        events = response.json().get("value", [])
+        matching_events = [e for e in events if meeting_name.lower() in e.get("subject", "").lower()]
+
+        if not matching_events:
+            print(f"[INFO] No meetings found matching '{meeting_name}'")
+            return []
+
+        return matching_events
 
     response.raise_for_status()
 
