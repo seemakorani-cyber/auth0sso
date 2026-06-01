@@ -149,55 +149,46 @@ def search_teams_meetings(token, meeting_name):
     """Search for Teams meetings by name and return matching events."""
     headers = {"Authorization": f"Bearer {token}"}
 
-    # Escape single quotes for OData filter
-    escaped_name = meeting_name.replace("'", "''")
-
-    # Try to search using /me/events endpoint (doesn't require date range)
-    filter_query = f"contains(subject, '{escaped_name}')"
+    # Fetch all recent events and filter client-side
+    # This is more reliable than using OData filters with special characters
+    print("[INFO] Fetching recent events...")
     url = f"{GRAPH_API_BASE}/me/events"
-    params = {
-        "$filter": filter_query,
-        "$orderby": "start/dateTime desc",
-        "$top": "20"
-    }
+    params = {"$top": "200"}
 
     response = requests.get(url, headers=headers, params=params)
 
     if response.status_code == 401:
         raise Exception("Authentication token expired or invalid")
 
-    if response.status_code == 400:
-        # Fallback: fetch recent events without filter and filter client-side
-        print("[INFO] Retrying search without filter...")
-        response = requests.get(
-            f"{GRAPH_API_BASE}/me/events",
-            headers=headers,
-            params={
-                "$orderby": "start/dateTime desc",
-                "$top": "100"
-            }
-        )
-        if response.status_code != 200:
-            response.raise_for_status()
+    if response.status_code != 200:
+        response.raise_for_status()
 
-        # Filter manually on the client side
-        events = response.json().get("value", [])
-        matching_events = [e for e in events if meeting_name.lower() in e.get("subject", "").lower()]
-
-        if not matching_events:
-            print(f"[INFO] No meetings found matching '{meeting_name}'")
-            return []
-
-        return matching_events
-
-    response.raise_for_status()
-
+    # Get all events
     events = response.json().get("value", [])
+
     if not events:
-        print(f"[INFO] No meetings found matching '{meeting_name}'")
+        print(f"[INFO] No events found in calendar")
         return []
 
-    return events
+    # Filter for matching meeting names (case-insensitive)
+    matching_events = []
+    for event in events:
+        subject = event.get("subject", "").lower()
+        if meeting_name.lower() in subject:
+            matching_events.append(event)
+
+    # Sort by start time (newest first)
+    matching_events.sort(
+        key=lambda e: e.get("start", {}).get("dateTime", ""),
+        reverse=True
+    )
+
+    if not matching_events:
+        print(f"[INFO] No meetings found matching '{meeting_name}'")
+        print(f"[INFO] Searched {len(events)} events in your calendar")
+        return []
+
+    return matching_events
 
 
 def get_meeting_transcript(token, meeting_id):
