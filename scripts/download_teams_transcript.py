@@ -12,10 +12,9 @@ import json
 import argparse
 import requests
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from msal import PublicClientApplication
-from urllib.parse import urljoin
 
 # Load environment variables
 load_dotenv()
@@ -23,42 +22,97 @@ load_dotenv()
 # Configuration
 CLIENT_ID = os.getenv("AZURE_CLIENT_ID")
 TENANT_ID = os.getenv("AZURE_TENANT_ID")
+CLIENT_SECRET = os.getenv("AZURE_CLIENT_SECRET")  # Optional, for confidential clients
 SCOPES = ["https://graph.microsoft.com/.default"]
 GRAPH_API_BASE = "https://graph.microsoft.com/v1.0"
-CACHE_FILE = Path.home() / ".teams_transcript_cache.json"
 
-# Workspace path (maps to delivery-assessment Recordings folder)
-# On Windows: C:\Users\KrishnaKumar\OneDrive - Royal Cyber Inc\Documents\PM-Automations
+# Token cache file
+CACHE_DIR = Path.home() / ".teams_transcript_auth"
+CACHE_DIR.mkdir(exist_ok=True)
+CACHE_FILE = CACHE_DIR / "token_cache.json"
+
+# Workspace path
 WORKSPACE = os.getenv("WORKSPACE_PATH") or str(Path.home() / "PM-Automations")
 RECORDINGS_DIR = Path(WORKSPACE) / "Recordings"
 
 
+def load_cached_token():
+    """Load cached access token if it exists and is valid."""
+    if not CACHE_FILE.exists():
+        return None
+
+    try:
+        with open(CACHE_FILE, 'r') as f:
+            cache_data = json.load(f)
+
+        # Check if token exists and hasn't expired
+        if 'access_token' in cache_data:
+            expires_at = datetime.fromisoformat(cache_data.get('expires_at', ''))
+            if expires_at > datetime.now():
+                return cache_data['access_token']
+    except (json.JSONDecodeError, ValueError, KeyError):
+        pass
+
+    return None
+
+
+def save_token_to_cache(token, expires_in):
+    """Save access token and expiration time to cache file."""
+    try:
+        expires_at = datetime.now() + timedelta(seconds=expires_in)
+        cache_data = {
+            'access_token': token,
+            'expires_at': expires_at.isoformat(),
+            'created_at': datetime.now().isoformat()
+        }
+        with open(CACHE_FILE, 'w') as f:
+            json.dump(cache_data, f)
+        os.chmod(CACHE_FILE, 0o600)  # Secure file permissions
+    except Exception as e:
+        print(f"Warning: Could not save token cache: {e}")
+
+
 def get_auth_token():
     """Authenticate and return access token using MSAL."""
+
+    # Try to use cached token first
+    cached_token = load_cached_token()
+    if cached_token:
+        print("[INFO] Using cached login (valid for ~1 hour)")
+        return cached_token
+
+    print("[INFO] No valid cached token. Logging in...")
+
     app = PublicClientApplication(
         client_id=CLIENT_ID,
         authority=f"https://login.microsoftonline.com/{TENANT_ID}"
     )
 
-    # Try to get token from cache
+    # Try to get token from MSAL cache
     accounts = app.get_accounts()
     if accounts:
         token_response = app.acquire_token_silent(SCOPES, account=accounts[0])
         if token_response and "access_token" in token_response:
+            save_token_to_cache(token_response["access_token"], token_response.get("expires_in", 3600))
             return token_response["access_token"]
 
-    # Interactive login
-    print("Opening browser for Teams login...")
+    # Device flow login
+    print("[INFO] Opening browser for Teams login...")
     flow = app.initiate_device_flow(scopes=SCOPES)
     if "user_code" not in flow:
         raise Exception("Failed to initiate device flow")
 
-    print(f"\nEnter this code: {flow['user_code']}")
-    print("in your browser at: https://microsoft.com/devicelogin\n")
+    print(f"\n[ACTION] Enter this code: {flow['user_code']}")
+    print(f"[ACTION] Go to: https://microsoft.com/devicelogin\n")
 
     token_response = app.acquire_token_by_device_flow(flow)
     if "access_token" not in token_response:
-        raise Exception(f"Failed to get token: {token_response.get('error_description', 'Unknown error')}")
+        error = token_response.get('error_description', 'Unknown error')
+        raise Exception(f"Login failed: {error}")
+
+    # Cache the token
+    save_token_to_cache(token_response["access_token"], token_response.get("expires_in", 3600))
+    print("[OK] Login successful! Token cached for next time.\n")
 
     return token_response["access_token"]
 
@@ -135,15 +189,15 @@ def find_latest_meeting_recording(token, meeting_name):
     subject = latest_meeting["subject"]
     start_time = latest_meeting["start"]["dateTime"]
 
-    print(f"Found meeting: {subject}")
-    print(f"Start time: {start_time}")
+    print(f"[OK] Found meeting: {subject}")
+    print(f"[INFO] Start time: {start_time}")
 
     # Attempt to get transcript
     transcript_content = get_meeting_transcript(token, meeting_id)
 
     if not transcript_content:
-        print("⚠️  No transcript found for this meeting yet.")
-        print("Note: Teams may take a few minutes to generate transcripts after the meeting ends.")
+        print("[WARNING] No transcript found for this meeting yet.")
+        print("[INFO] Teams may take a few minutes to generate transcripts after the meeting ends.")
         return None
 
     return {
@@ -191,36 +245,46 @@ def main():
         "--workspace",
         help=f"Custom workspace path (default: {WORKSPACE})"
     )
+    parser.add_argument(
+        "--clear-cache",
+        action="store_true",
+        help="Clear cached login and force re-authentication"
+    )
 
     args = parser.parse_args()
 
     # Validate environment
     if not CLIENT_ID or not TENANT_ID:
-        print("❌ Error: AZURE_CLIENT_ID and AZURE_TENANT_ID not set")
-        print("Run: python scripts/setup_teams_auth.py")
+        print("[ERROR] AZURE_CLIENT_ID and AZURE_TENANT_ID not set in .env")
+        print("[INFO] Run setup_teams.bat to configure credentials")
         sys.exit(1)
 
+    # Clear cache if requested
+    if args.clear_cache:
+        if CACHE_FILE.exists():
+            CACHE_FILE.unlink()
+            print("[OK] Cache cleared. You'll need to login next time.\n")
+
     try:
-        print("🔐 Authenticating to Teams...")
+        print("[INFO] Authenticating to Teams...")
         token = get_auth_token()
 
-        print(f"🔍 Searching for meeting: '{args.meeting_name}'...")
+        print(f"[INFO] Searching for meeting: '{args.meeting_name}'...")
         transcript_data = find_latest_meeting_recording(token, args.meeting_name)
 
         if transcript_data:
             filepath = save_transcript(transcript_data)
-            print(f"✅ Transcript saved to: {filepath}")
-            print(f"\nNow run the delivery-assessment skill in Claude Code:")
-            print(f"   Meeting name: {transcript_data['subject']}")
+            print(f"[OK] Transcript saved to: {filepath}")
+            print(f"\n[INFO] Next: Open Claude Code and say 'delivery assessment'")
         else:
-            print("❌ Failed to download transcript")
+            print("[ERROR] Failed to download transcript")
             sys.exit(1)
 
     except KeyboardInterrupt:
-        print("\n⚠️  Cancelled by user")
+        print("\n[INFO] Cancelled by user")
         sys.exit(0)
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"[ERROR] {e}")
         sys.exit(1)
 
 
